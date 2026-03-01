@@ -333,10 +333,10 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
     env_path = get_local_env_path(main_node_dir, config_path)
 
     # Central build dir -- shared across nodes with same config hash
-    if sys.platform == "win32":
-        build_base = Path("C:/ce")
-    else:
-        build_base = Path.home() / ".ce"
+    # Use the same cache directory as defined in environment/cache.py
+    from .environment.cache import get_cache_dir
+
+    build_base = get_cache_dir()
     build_base.mkdir(parents=True, exist_ok=True)
     _ensure_detect_scripts(build_base)
     build_dir = build_base / env_path.name
