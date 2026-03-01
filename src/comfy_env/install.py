@@ -396,18 +396,18 @@ def _install_via_pixi(
 
     def _link_env():
         """Link env_path -> build_dir/.pixi/envs/default (junction on Windows, symlink on Unix).
-        
+
         OB Fork: Disabled junction creation - environment stays in cache directory.
         The resolve_env_path function will look in the cache as fallback.
         """
         target = build_dir / ".pixi" / "envs" / "default"
         if not target.exists():
             return
-        
+
         # OB Fork: Skip junction creation - just log the path
         # Environment is in cache directory (TRELLIS2-envs)
         log(f"Env (no junction): {env_path.name} -> {target}")
-        
+
         # Store the target path in a file so resolve_env_path can find it later
         cache_info_file = node_dir / ".comfy-env-cache-info"
         try:
