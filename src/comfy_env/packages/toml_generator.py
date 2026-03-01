@@ -17,16 +17,21 @@ _TORCH_PACKAGES = {"torch", "torchvision", "torchaudio"}
 def _require_tomli_w():
     try:
         import tomli_w
+
         return tomli_w
     except ImportError:
         raise ImportError("tomli-w required: pip install tomli-w")
 
 
-def generate_pixi_toml(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print) -> str:
+def generate_pixi_toml(
+    cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print
+) -> str:
     return _require_tomli_w().dumps(config_to_pixi_dict(cfg, node_dir, log))
 
 
-def write_pixi_toml(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print) -> Path:
+def write_pixi_toml(
+    cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print
+) -> Path:
     tomli_w = _require_tomli_w()
     pixi_toml = node_dir / "pixi.toml"
     with open(pixi_toml, "wb") as f:
@@ -38,24 +43,18 @@ def write_pixi_toml(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], No
 def _should_skip_torch(cfg: ComfyEnvConfig, log: Callable[[str], None] = print) -> bool:
     """Determine if torch packages should be skipped during install (inherited from host).
 
-    Skips when the host has torch and the worker's Python major.minor matches.
-    Torch is a C extension — it can only be shared when Python versions match.
+    DISABLED: This feature was causing CUDA torch to not be installed properly.
+    The host torch cannot be shared with the isolated environment when CUDA is required.
+    Always install torch in the isolated environment to ensure proper CUDA support.
     """
-    try:
-        import torch as _torch
-    except ImportError:
-        return False
-
-    host_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-    worker_version = cfg.python or host_version  # No python specified = defaults to host
-    if host_version == worker_version:
-        log(f"  share_torch: Python {worker_version} matches host, skipping torch bundle install")
-        return True
-
+    # Disabled - was causing "Torch not compiled with CUDA enabled" errors
+    # when trying to share CPU torch from host with CUDA-required workflows
     return False
 
 
-def config_to_pixi_dict(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print) -> Dict[str, Any]:
+def config_to_pixi_dict(
+    cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None] = print
+) -> Dict[str, Any]:
     pixi_data = copy.deepcopy(cfg.pixi_passthrough)
 
     # Detect CUDA/PyTorch versions and compute PyTorch index URL
@@ -64,7 +63,9 @@ def config_to_pixi_dict(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str]
         cuda_version = get_recommended_cuda_version()
         if cuda_version:
             torch_version = CUDA_TORCH_MAP.get(".".join(cuda_version.split(".")[:2]), "2.8")
-            pytorch_index = f"https://download.pytorch.org/whl/cu{cuda_version.replace('.', '')[:3]}"
+            pytorch_index = (
+                f"https://download.pytorch.org/whl/cu{cuda_version.replace('.', '')[:3]}"
+            )
             log(f"CUDA {cuda_version} -> PyTorch {torch_version}")
         else:
             pytorch_index = "https://download.pytorch.org/whl/cpu"
