@@ -6,7 +6,14 @@ import sys
 from pathlib import Path
 from typing import Callable, List, Optional, Set, Union
 
-from .config import ComfyEnvConfig, NodeDependency, load_config, discover_config, CONFIG_FILE_NAME, ROOT_CONFIG_FILE_NAME
+from .config import (
+    ComfyEnvConfig,
+    NodeDependency,
+    load_config,
+    discover_config,
+    CONFIG_FILE_NAME,
+    ROOT_CONFIG_FILE_NAME,
+)
 from .environment.cache import get_local_env_path
 
 USE_COMFY_ENV_VAR = "USE_COMFY_ENV"
@@ -15,8 +22,10 @@ USE_COMFY_ENV_VAR = "USE_COMFY_ENV"
 def _rmtree(path) -> None:
     """rmtree that handles read-only files and long paths on Windows."""
     import shutil
+
     if sys.platform == "win32":
         import subprocess, tempfile
+
         target = str(Path(path).resolve())
         empty = tempfile.mkdtemp()
         try:
@@ -41,10 +50,12 @@ def _enable_windows_long_paths(log: Callable[[str], None]) -> None:
         return
     try:
         import winreg
+
         key = winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
             r"SYSTEM\CurrentControlSet\Control\FileSystem",
-            0, winreg.KEY_SET_VALUE
+            0,
+            winreg.KEY_SET_VALUE,
         )
         winreg.SetValueEx(key, "LongPathsEnabled", 0, winreg.REG_DWORD, 1)
         winreg.CloseKey(key)
@@ -66,6 +77,7 @@ def _find_main_node_dir(node_dir: Path) -> Path:
 def _find_uv() -> str:
     """Find the uv binary installed alongside comfy-env."""
     import shutil
+
     exe_dir = Path(sys.executable).parent
     uv_name = "uv.exe" if sys.platform == "win32" else "uv"
     # Check next to python executable (venvs on Windows, bin/ on Unix)
@@ -92,9 +104,12 @@ def _make_tee_log(log_callback: Callable[[str], None], log_path: Path) -> Callab
     Call ``.close()`` when done.
     """
     import datetime
+
     fh = open(log_path, "w", encoding="utf-8")
     fh.write(f"# comfy-env install log - {datetime.datetime.now().isoformat()}\n")
-    fh.write(f"# Python: {sys.executable} ({sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro})\n")
+    fh.write(
+        f"# Python: {sys.executable} ({sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro})\n"
+    )
     fh.write(f"# Platform: {sys.platform}\n\n")
     fh.flush()
 
@@ -146,10 +161,14 @@ def install(
         cfg = discover_config(node_dir, root=True)
 
     if cfg is None:
-        raise FileNotFoundError(f"No {ROOT_CONFIG_FILE_NAME} or {CONFIG_FILE_NAME} found in {node_dir}")
+        raise FileNotFoundError(
+            f"No {ROOT_CONFIG_FILE_NAME} or {CONFIG_FILE_NAME} found in {node_dir}"
+        )
 
-    if cfg.apt_packages: _install_apt_packages(cfg.apt_packages, log, dry_run)
-    if cfg.brew_packages: _install_brew_packages(cfg.brew_packages, log, dry_run)
+    if cfg.apt_packages:
+        _install_apt_packages(cfg.apt_packages, log, dry_run)
+    if cfg.brew_packages:
+        _install_brew_packages(cfg.brew_packages, log, dry_run)
     if cfg.node_reqs:
         _install_node_dependencies(cfg.node_reqs, node_dir, log, dry_run)
         _reinstall_main_requirements(node_dir, log, dry_run)
@@ -166,6 +185,7 @@ def install(
 def _install_apt_packages(packages: List[str], log: Callable[[str], None], dry_run: bool) -> None:
     from .packages.apt import apt_install
     import platform
+
     if platform.system() != "Linux":
         return
     log(f"\n[apt] Installing: {', '.join(packages)}")
@@ -178,6 +198,7 @@ def _install_apt_packages(packages: List[str], log: Callable[[str], None], dry_r
 def _install_brew_packages(packages: List[str], log: Callable[[str], None], dry_run: bool) -> None:
     from .packages.brew import brew_install
     import platform
+
     if platform.system() != "Darwin":
         return
     log(f"\n[brew] Installing: {', '.join(packages)}")
@@ -187,13 +208,18 @@ def _install_brew_packages(packages: List[str], log: Callable[[str], None], dry_
             log("[brew] WARNING: Some brew packages failed to install. This may cause issues.")
 
 
-def _install_node_dependencies(node_reqs: List[NodeDependency], node_dir: Path, log: Callable[[str], None], dry_run: bool) -> None:
+def _install_node_dependencies(
+    node_reqs: List[NodeDependency], node_dir: Path, log: Callable[[str], None], dry_run: bool
+) -> None:
     from .packages.node_dependencies import install_node_dependencies
+
     custom_nodes_dir = node_dir.parent
     log(f"\nInstalling {len(node_reqs)} node dependencies...")
     if dry_run:
         for req in node_reqs:
-            log(f"  {req.name}: {'exists' if (custom_nodes_dir / req.name).exists() else 'would clone'}")
+            log(
+                f"  {req.name}: {'exists' if (custom_nodes_dir / req.name).exists() else 'would clone'}"
+            )
         return
     install_node_dependencies(node_reqs, custom_nodes_dir, log, {node_dir.name})
 
@@ -201,6 +227,7 @@ def _install_node_dependencies(node_reqs: List[NodeDependency], node_dir: Path, 
 def _reinstall_main_requirements(node_dir: Path, log: Callable[[str], None], dry_run: bool) -> None:
     """Re-install main package's requirements.txt after node_reqs to restore correct versions."""
     from .packages.node_dependencies import install_requirements
+
     req_file = node_dir / "requirements.txt"
     if not req_file.exists():
         return
@@ -220,6 +247,7 @@ def _has_isolated_subdirs(node_dir: Path) -> bool:
 def _save_env_metadata(build_dir: Path, node_dir: Path, config_path: Path) -> None:
     """Save source config metadata alongside the built environment."""
     import json
+
     try:
         main_dir = _find_main_node_dir(node_dir)
         try:
@@ -232,6 +260,7 @@ def _save_env_metadata(build_dir: Path, node_dir: Path, config_path: Path) -> No
         summary = {}
         try:
             import tomli
+
             with open(config_path, "rb") as f:
                 toml_data = tomli.load(f)
             if "cuda" in toml_data and "packages" in toml_data["cuda"]:
@@ -258,7 +287,7 @@ def _save_env_metadata(build_dir: Path, node_dir: Path, config_path: Path) -> No
         pass  # Non-fatal — metadata is optional
 
 
-_DETECT_SH = r'''#!/usr/bin/env bash
+_DETECT_SH = r"""#!/usr/bin/env bash
 # List all comfy-env environments and their metadata
 BASE="$(cd "$(dirname "$0")" && pwd)"
 for d in "$BASE"/_env_*/; do
@@ -273,9 +302,9 @@ for d in "$BASE"/_env_*/; do
     [ -f "$log" ] && printf "  install.log: %s\n" "$log"
     echo
 done
-'''
+"""
 
-_DETECT_BAT = r'''@echo off
+_DETECT_BAT = r"""@echo off
 setlocal enabledelayedexpansion
 REM List all comfy-env environments and their metadata
 for /d %%d in (%~dp0\_env_*) do (
@@ -286,7 +315,7 @@ for /d %%d in (%~dp0\_env_*) do (
     if exist "%%d\install.log" echo   install.log: %%d\install.log
     echo.
 )
-'''
+"""
 
 
 def _ensure_detect_scripts(build_base: Path) -> None:
@@ -307,7 +336,9 @@ def _ensure_detect_scripts(build_base: Path) -> None:
         pass
 
 
-def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None], dry_run: bool) -> None:
+def _install_via_pixi(
+    cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], None], dry_run: bool
+) -> None:
     """Install dependencies into an isolated pixi environment (for comfy-env.toml subdirs only)."""
     from .packages.pixi import ensure_pixi
     from .packages.toml_generator import write_pixi_toml
@@ -323,20 +354,24 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
         return
 
     log(f"\nInstalling via pixi:")
-    if has_cuda: log(f"  CUDA: {', '.join(cfg.cuda_packages)}")
-    if deps: log(f"  Conda: {len(deps)}")
-    if pypi_deps: log(f"  PyPI: {len(pypi_deps)}")
-    if dry_run: return
+    if has_cuda:
+        log(f"  CUDA: {', '.join(cfg.cuda_packages)}")
+    if deps:
+        log(f"  Conda: {len(deps)}")
+    if pypi_deps:
+        log(f"  PyPI: {len(pypi_deps)}")
+    if dry_run:
+        return
 
     config_path = node_dir / CONFIG_FILE_NAME
     main_node_dir = _find_main_node_dir(node_dir)
     env_path = get_local_env_path(main_node_dir, config_path)
 
     # Central build dir -- shared across nodes with same config hash
-    if sys.platform == "win32":
-        build_base = Path("C:/ce")
-    else:
-        build_base = Path.home() / ".ce"
+    # Use the same cache directory as defined in environment/cache.py
+    from .environment.cache import get_cache_dir
+
+    build_base = get_cache_dir()
     build_base.mkdir(parents=True, exist_ok=True)
     _ensure_detect_scripts(build_base)
     build_dir = build_base / env_path.name
@@ -352,6 +387,7 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
             return True
         if sys.platform == "win32":
             import stat
+
             try:
                 return bool(os.lstat(str(p)).st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
             except (OSError, AttributeError):
@@ -365,15 +401,18 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
             return
         if _is_link_or_junction(env_path):
             # unlink for symlinks, rmdir for junctions -- never _rmtree (would follow the link)
-            try: env_path.unlink()
-            except OSError: env_path.rmdir()
+            try:
+                env_path.unlink()
+            except OSError:
+                env_path.rmdir()
         elif env_path.exists():
             _rmtree(env_path)
         env_path.parent.mkdir(parents=True, exist_ok=True)
         if sys.platform == "win32":
             # Junctions don't require Developer Mode; symlinks do
-            subprocess.run(["cmd", "/c", "mklink", "/J", str(env_path), str(target)],
-                          capture_output=True)
+            subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(env_path), str(target)], capture_output=True
+            )
         else:
             env_path.symlink_to(target)
         log(f"Env: {env_path} -> {target}")
@@ -385,8 +424,10 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
         # Backfill metadata for pre-existing builds
         if not (build_dir / ".comfy-env-meta.json").exists():
             _save_env_metadata(build_dir, node_dir, config_path)
-        try: _rmtree(node_dir / ".pixi")
-        except OSError: pass
+        try:
+            _rmtree(node_dir / ".pixi")
+        except OSError:
+            pass
         return
 
     # Try to acquire build lock (mkdir is atomic)
@@ -400,8 +441,10 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
             if done_marker.exists():
                 log("[comfy-env] Build completed by other process, reusing")
                 _link_env()
-                try: _rmtree(node_dir / ".pixi")
-                except OSError: pass
+                try:
+                    _rmtree(node_dir / ".pixi")
+                except OSError:
+                    pass
                 return
             time.sleep(1)
         # Stale lock from crashed build -- nuke and take over
@@ -436,10 +479,14 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
         pixi_env = dict(os.environ)
         pixi_env["UV_PYTHON_INSTALL_DIR"] = str(build_dir / "_no_python")
         pixi_env["UV_PYTHON_PREFERENCE"] = "only-system"
-        result = subprocess.run([str(pixi_path), "install"], cwd=build_dir, capture_output=True, text=True, env=pixi_env)
+        result = subprocess.run(
+            [str(pixi_path), "install"], cwd=build_dir, capture_output=True, text=True, env=pixi_env
+        )
         _log_subprocess(log, result, "pixi install")
         if result.returncode != 0:
-            raise RuntimeError(f"pixi install failed:\nstderr: {result.stderr}\nstdout: {result.stdout}")
+            raise RuntimeError(
+                f"pixi install failed:\nstderr: {result.stderr}\nstdout: {result.stdout}"
+            )
 
         # Install cuda-wheels packages (nvdiffrast, pytorch3d, etc.) via uv pip.
         # PyTorch packages (torch, torchvision, torchaudio) are handled by pixi
@@ -453,9 +500,20 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
             if not python_path.exists():
                 raise RuntimeError(f"No Python in pixi env: {python_path}")
 
-            result = subprocess.run([str(python_path), "-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
-                                   capture_output=True, text=True)
-            py_version = result.stdout.strip() if result.returncode == 0 else f"{sys.version_info.major}.{sys.version_info.minor}"
+            result = subprocess.run(
+                [
+                    str(python_path),
+                    "-c",
+                    "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            py_version = (
+                result.stdout.strip()
+                if result.returncode == 0
+                else f"{sys.version_info.major}.{sys.version_info.minor}"
+            )
 
             uv_path = _find_uv()
             log(f"[comfy-env] Installing cuda-wheels packages (uv={uv_path}, python={python_path})")
@@ -465,18 +523,31 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
                 if not wheel_url:
                     raise RuntimeError(f"No wheel for {package}")
                 log(f"  {package} from {wheel_url}")
-                cmd = [uv_path, "pip", "install", "--python", str(python_path), "--no-deps", "--no-cache", wheel_url]
+                cmd = [
+                    uv_path,
+                    "pip",
+                    "install",
+                    "--python",
+                    str(python_path),
+                    "--no-deps",
+                    "--no-cache",
+                    wheel_url,
+                ]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 _log_subprocess(log, result, f"pip install {package}")
                 if result.returncode != 0:
-                    raise RuntimeError(f"Failed to install {package}:\nstderr: {result.stderr}\nstdout: {result.stdout}")
+                    raise RuntimeError(
+                        f"Failed to install {package}:\nstderr: {result.stderr}\nstdout: {result.stdout}"
+                    )
 
         # Link _env_<hash> directly to .pixi/envs/default.
         # We do NOT move the env -- conda packages have hardcoded RPATHs
         # pointing to .pixi/envs/default/lib/ and moving breaks them.
         _link_env()
-        try: _rmtree(node_dir / ".pixi")
-        except OSError: pass
+        try:
+            _rmtree(node_dir / ".pixi")
+        except OSError:
+            pass
 
         done_marker.touch()
         _save_env_metadata(build_dir, node_dir, config_path)
@@ -484,14 +555,17 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
     finally:
         if tee_log:
             tee_log.close()
-        try: lock_dir.rmdir()
-        except OSError: pass
+        try:
+            lock_dir.rmdir()
+        except OSError:
+            pass
 
 
 def _install_isolated_subdirs(node_dir: Path, log: Callable[[str], None], dry_run: bool) -> None:
     """Find and install comfy-env.toml in subdirectories (isolated folders only)."""
     for config_file in node_dir.rglob(CONFIG_FILE_NAME):
-        if config_file.parent == node_dir: continue  # Skip root
+        if config_file.parent == node_dir:
+            continue  # Skip root
         log(f"\n[isolated] {config_file.parent.relative_to(node_dir)}")
         if not dry_run:
             _install_via_pixi(load_config(config_file), config_file.parent, log, dry_run)
