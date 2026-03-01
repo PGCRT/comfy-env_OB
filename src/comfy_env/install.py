@@ -394,28 +394,26 @@ def _install_via_pixi(
                 pass
         return False
 
-    def _link_env():
-        """Link env_path -> build_dir/.pixi/envs/default (junction on Windows, symlink on Unix)."""
+def _link_env():
+        """Link env_path -> build_dir/.pixi/envs/default (junction on Windows, symlink on Unix).
+        
+        OB Fork: Disabled junction creation - environment stays in cache directory.
+        The resolve_env_path function will look in the cache as fallback.
+        """
         target = build_dir / ".pixi" / "envs" / "default"
         if not target.exists():
             return
-        if _is_link_or_junction(env_path):
-            # unlink for symlinks, rmdir for junctions -- never _rmtree (would follow the link)
-            try:
-                env_path.unlink()
-            except OSError:
-                env_path.rmdir()
-        elif env_path.exists():
-            _rmtree(env_path)
-        env_path.parent.mkdir(parents=True, exist_ok=True)
-        if sys.platform == "win32":
-            # Junctions don't require Developer Mode; symlinks do
-            subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(env_path), str(target)], capture_output=True
-            )
-        else:
-            env_path.symlink_to(target)
-        log(f"Env: {env_path} -> {target}")
+        
+        # OB Fork: Skip junction creation - just log the path
+        # Environment is in cache directory (TRELLIS2-envs)
+        log(f"Env (no junction): {env_path.name} -> {target}")
+        
+        # Store the target path in a file so resolve_env_path can find it later
+        cache_info_file = node_dir / ".comfy-env-cache-info"
+        try:
+            cache_info_file.write_text(str(target))
+        except Exception:
+            pass
 
     # Fast path: env already built
     if done_marker.exists():

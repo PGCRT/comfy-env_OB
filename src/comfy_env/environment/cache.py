@@ -77,13 +77,47 @@ def get_local_env_path(main_node_dir: Path, config_path: Path) -> Path:
 
 
 def resolve_env_path(node_dir: Path) -> Tuple[Optional[Path], Optional[Path], Optional[Path]]:
-    """Find _env_* dir in node_dir."""
+    """Find _env_* dir in node_dir.
+
+    OB Fork: Also checks cache directory if no junction exists in node_dir.
+    """
+    # First try to find _env_* in node_dir (for backward compatibility with junctions)
     try:
         for item in node_dir.iterdir():
             if item.name.startswith("_env_") and item.is_dir():
                 return _get_env_paths(item)
     except OSError:
         pass
+
+    # OB Fork: Check for .comfy-env-cache-info file (no junction mode)
+    cache_info_file = node_dir / ".comfy-env-cache-info"
+    if cache_info_file.exists():
+        try:
+            target_path = Path(cache_info_file.read_text().strip())
+            if target_path.exists():
+                return _get_env_paths(target_path)
+        except Exception:
+            pass
+
+    # OB Fork: Try to find environment in cache directory
+    cache_dir = get_cache_dir()
+    env_name = None
+    try:
+        for item in node_dir.iterdir():
+            if item.name.startswith("_env_"):
+                env_name = item.name
+                break
+    except OSError:
+        pass
+
+    if env_name:
+        cache_env_path = cache_dir / env_name
+        if cache_env_path.exists():
+            # Return paths pointing to .pixi/envs/default inside the cache env
+            pixi_env = cache_env_path / ".pixi" / "envs" / "default"
+            if pixi_env.exists():
+                return _get_env_paths(pixi_env)
+
     return None, None, None
 
 
