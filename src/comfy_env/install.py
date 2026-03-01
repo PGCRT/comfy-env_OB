@@ -394,7 +394,7 @@ def _install_via_pixi(
                 pass
         return False
 
-def _link_env():
+    def _link_env():
         """Link env_path -> build_dir/.pixi/envs/default (junction on Windows, symlink on Unix).
         
         OB Fork: Disabled junction creation - environment stays in cache directory.
