@@ -9,9 +9,15 @@ from typing import Optional, Tuple
 
 
 def _get_default_cache_dir() -> Path:
-    """Get platform-specific default cache directory."""
+    """Get platform-specific default cache directory.
+
+    Defaults to a 'TRELLIS2-envs' folder next to the ComfyUI executable
+    to keep all TRELLIS2 isolated environments in one place.
+    """
     if sys.platform == "win32":
-        return Path("C:/comfy-envs")
+        # Default to TRELLIS2-envs folder next to ComfyUI python.exe
+        comfyui_dir = Path(sys.executable).parent
+        return comfyui_dir / "TRELLIS2-envs"
     else:
         return Path.home() / ".comfy-envs"
 
@@ -30,6 +36,7 @@ def _get_version() -> str:
     """Get comfy-env version string for cache busting."""
     try:
         from importlib.metadata import version
+
         return version("comfy-env")
     except Exception:
         return "0.0.0-dev"
@@ -44,7 +51,8 @@ def compute_config_hash(config_path: Path) -> str:
 def sanitize_name(name: str) -> str:
     name = name.lower()
     for prefix in ("comfyui-", "comfyui_"):
-        if name.startswith(prefix): name = name[len(prefix):]
+        if name.startswith(prefix):
+            name = name[len(prefix) :]
     return name.replace("-", "_").replace(" ", "_")
 
 
