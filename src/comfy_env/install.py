@@ -463,13 +463,14 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
             for package in cuda_wheels_packages:
                 wheel_url = get_wheel_url(package, torch_version, cuda_version, py_version)
                 if not wheel_url:
-                    raise RuntimeError(f"No wheel for {package}")
+                    log(f"  [WARN] No wheel found for {package} (cu{cuda_version} torch{torch_version} py{py_version}) - skipping")
+                    continue
                 log(f"  {package} from {wheel_url}")
                 cmd = [uv_path, "pip", "install", "--python", str(python_path), "--no-deps", "--no-cache", wheel_url]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 _log_subprocess(log, result, f"pip install {package}")
                 if result.returncode != 0:
-                    raise RuntimeError(f"Failed to install {package}:\nstderr: {result.stderr}\nstdout: {result.stdout}")
+                    log(f"  [WARN] Failed to install {package} (skipping): {result.stderr.strip()}")
 
         # Link _env_<hash> directly to .pixi/envs/default.
         # We do NOT move the env -- conda packages have hardcoded RPATHs

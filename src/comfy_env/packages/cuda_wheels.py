@@ -60,6 +60,9 @@ def get_wheel_url(package: str, torch_version: str, cuda_version: str, python_ve
             if any(p in display for p in local_patterns) and py_tag in display:
                 if not platform_tags or any(t in display for t in platform_tags):
                     url = wheel_url if wheel_url.startswith("http") else f"{CUDA_WHEELS_INDEX}{pkg_dir}/{wheel_url}"
+                    # Index may use dotless torch version (e.g. torch28) while the
+                    # actual release file uses dots (e.g. torch2.8). Normalise the URL.
+                    url = url.replace(f"torch{torch_short}", f"torch{torch_version}")
                     candidates.append((url, display))
 
     if candidates:
