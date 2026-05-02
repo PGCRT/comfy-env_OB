@@ -222,6 +222,14 @@ def _get_env_paths(env_dir: Path) -> tuple[Optional[Path], Optional[Path]]:
 
 def _find_env_dir(node_dir: Path) -> Optional[Path]:
     """Find _env_* directory in node_dir."""
+    shared_name = os.environ.get("COMFY_ENV_SHARED_NAME")
+    if shared_name:
+        candidate = node_dir / f"_env_{shared_name.lower().replace('-', '_').replace(' ', '_')}"
+        if candidate.is_dir():
+            if sys.platform == "win32" and candidate.is_junction():
+                return candidate.resolve()
+            return candidate
+
     try:
         for item in node_dir.iterdir():
             if item.name.startswith("_env_") and item.is_dir():

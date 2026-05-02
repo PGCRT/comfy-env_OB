@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
+import tomli
+
 
 def _get_default_cache_dir() -> Path:
     """Get platform-specific default cache directory.
@@ -72,6 +74,18 @@ def get_env_name(node_dir: Path, config_path: Path) -> str:
 
 def get_local_env_path(main_node_dir: Path, config_path: Path) -> Path:
     """Return path for _env_* symlink in config_path.parent. Hash-only name so identical configs share envs."""
+    shared_name = os.environ.get("COMFY_ENV_SHARED_NAME")
+    if not shared_name and config_path.exists():
+        try:
+            with open(config_path, "rb") as f:
+                shared_name = tomli.load(f).get("options", {}).get("shared_env_name")
+        except Exception:
+            shared_name = None
+
+    if shared_name:
+        safe_name = sanitize_name(str(shared_name))
+        return config_path.parent / f"_env_{safe_name}"
+
     h = compute_config_hash(config_path)[:6]
     return config_path.parent / f"_env_{h}"
 

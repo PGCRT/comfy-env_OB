@@ -30,6 +30,7 @@ class NodeDependency:
 class ComfyEnvOptions:
     """Runtime options for comfy-env."""
     health_check_timeout: float = DEFAULT_HEALTH_CHECK_TIMEOUT
+    shared_env_name: Optional[str] = None
 
 
 @dataclass

@@ -340,6 +340,8 @@ def _install_via_pixi(cfg: ComfyEnvConfig, node_dir: Path, log: Callable[[str], 
     build_base.mkdir(parents=True, exist_ok=True)
     _ensure_detect_scripts(build_base)
     build_dir = build_base / env_path.name
+    if cfg.options.shared_env_name:
+        log(f"[comfy-env] shared_env_name={cfg.options.shared_env_name}")
     log(f"[comfy-env] build_dir={build_dir}")
     log(f"[comfy-env] env_path={env_path}")
 

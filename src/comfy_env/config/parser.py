@@ -62,6 +62,7 @@ def _parse_options(data: Dict[str, Any]) -> ComfyEnvOptions:
     """Parse [options] section into ComfyEnvOptions."""
     return ComfyEnvOptions(
         health_check_timeout=float(data.get("health_check_timeout", DEFAULT_HEALTH_CHECK_TIMEOUT)),
+        shared_env_name=str(data["shared_env_name"]) if data.get("shared_env_name") else None,
     )
 
 
